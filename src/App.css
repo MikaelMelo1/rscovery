@@ -1,0 +1,120 @@
+.logo.vite:hover {
+  filter: drop-shadow(0 0 2em #747bff);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafb);
+}
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+
+  color: #f6f6f6;
+  background-color: #2f2f2f;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+.container {
+  margin: 0;
+  padding-top: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+
+  a:hover {
+    color: #24c8db;
+  }
+
+h1 {
+  text-align: center;
+  margin: 0px;
+}
+
+input,
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+
+  color: #ffffff;
+  background-color: #0f0f0f98;
+
+  transition: border-color 0.25s;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #396cd8;
+}
+button:active {
+  background-color: #0f0f0f69;
+  border-color: #396cd8;
+}
+
+input,
+button {
+  outline: none;
+}
+
+
+div.device {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: rgb(62, 62, 62);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all;
+  transition-duration: 150ms;
+  align-items: center;
+}
+
+div.device h1 {
+  font-size: 1.2em;
+  margin: 0px;
+  line-height: 100%;
+  padding: 0px;
+}
+
+div.device:hover {
+  background-color: rgb(92, 92, 92);
+}
+
+
+div.deviceList {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 50% 50%;
+}
+
+
+div.warningContainer {
+  background-color: rgb(68, 68, 68);
+  border-radius: 8px;
+  font-size: 18px;
+  max-width: 400px;
+  margin: 0px auto;
+  padding: 12px 32px;
+}
