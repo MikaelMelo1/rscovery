@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import "./styles.css";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -11,7 +11,10 @@ interface ScannedData {
 }
 
 export default function Scanning() {
-  const { id } = useParams<{ id: string }>();
+  const { search } = useLocation();
+  const queryParams = new URLSearchParams(search);
+
+  const id = queryParams.get("id");
 
   const [loadingScan, setLoadingScan] = useState(false);
   const [scannedSize, setScannedSize] = useState<ScannedData>({
@@ -20,12 +23,25 @@ export default function Scanning() {
     nonEmpty: [],
   });
 
+  // nonEmpty shows the blocks index (the size is 32MB) that are non empty
+  // we should convert it to the actual index.
+  const viewBlockSize = scannedSize.total / 200;
+  const nonEmptyBlocks = scannedSize.nonEmpty.map((index) => (index + 1) * 32);
+  // range: i-1*viewBlockSize - i*viewBlockSize
+
+
   useEffect(() => {
     const unlistenProgress = listen("scan-progress", (event) => {
-      console.log("Progresso:", event.payload);
+      const progress = event.payload as ScannedData;
+      console.log(progress)
+      setScannedSize({
+        current: progress.current,
+        total: progress.total,
+        nonEmpty: progress.nonEmpty,
+      })
     });
 
-    // cleanup
+
     return () => {
       unlistenProgress.then((f) => f());
     };
@@ -34,11 +50,11 @@ export default function Scanning() {
   const handleStartScan = async () => {
     try {
       // console.log(id);
+      setLoadingScan(true);
       await invoke("analyze_blocks", { path: id });
     } catch (err) {
       console.error("Error starting scan:", err);
     }
-    setLoadingScan(true);
   };
 
   return (
@@ -57,18 +73,25 @@ export default function Scanning() {
             {(scannedSize.total / 1024).toFixed(2)} GB
           </p>
           <div className="scanGrid">
-            {Array.from({ length: 200 }, (_, i) => (
-              <div
+            {Array.from({ length: 200 }, (_, it) => {
+              const i = it + 1;
+              const cellRange = [(Math.max(0, (i - 1))) * viewBlockSize, i * viewBlockSize];
+              const nonEmptyCell = nonEmptyBlocks.find((value) => value >= cellRange[0] && value < cellRange[1]);
+
+              return (<div
                 style={
-                  scannedSize.nonEmpty.includes(i)
+                  nonEmptyCell
                     ? { backgroundColor: "rgb(142, 255, 168)" }
                     : scannedSize.current / scannedSize.total > i / 200
                     ? { backgroundColor: "rgb(112, 86, 86)" }
                     : {}
+                    // scannedSize.current / scannedSize.total > i / 200
+                    // ? { backgroundColor: "rgb(231, 255, 236)" }
+                    // : {}
                 }
                 key={i}
               />
-            ))}
+            )})}
           </div>
         </div>
       ) : (

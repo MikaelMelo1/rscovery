@@ -9,7 +9,7 @@ function App() {
     <HashRouter>
       <Routes>
         <Route path="/" element={<Main />} />
-        <Route path="/disk/:id" element={<Scanning />} />
+        <Route path="/disk" element={<Scanning />} />
       </Routes>
     </HashRouter>
   );
