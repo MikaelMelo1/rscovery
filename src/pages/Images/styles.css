@@ -1,0 +1,32 @@
+header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+div.scanGrid {
+    display: grid;
+    gap: 4px;
+    grid-template-columns: repeat(5, 1fr);
+    max-width: 750px;
+    margin: 0px auto;
+}
+
+div.scanGrid div {
+    width: 100%;
+    border-radius: 4px;
+    background-color: rgb(108, 108, 108);
+    aspect-ratio: 1/1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+
+img.recoveredImage {
+    width: 100%;
+    border-radius: 4px;
+    aspect-ratio: 1/1;
+    object-fit: contain;
+}

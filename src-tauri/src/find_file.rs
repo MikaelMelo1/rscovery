@@ -7,61 +7,54 @@
 
 // Ex: finds the start position of a valid block (e.g. valid image).
 
+
+            // MagicByte::new(
+            //     &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+            //     &[0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82],
+            //     "png",
+            //     200 * 1024 * 1024,
+            //     "PNG",
+            //     true,
+            // ),
+            // MagicByte::new(
+            //     &[0xFF, 0xD8],
+            //     &[0xFF, 0xD9],
+            //     "jpeg",
+            //     500 * 1024 * 1024,
+            //     "JPEG",
+            //     true,
+            // ),
+            // MagicByte::new(
+            //     &[0x50, 0x4B, 0x03, 0x04],
+            //     &[0x50, 0x4B, 0x05, 0x06],
+            //     "zip",
+            //     500 * 1024 * 1024,
+            //     "ZIP",
+            //     false,
+            // ),
+            // MagicByte::new(
+            //     &[0x25, 0x50, 0x44, 0x46, 0x2D],
+            //     &[0x25, 0x25, 0x45, 0x4F, 0x46],
+            //     "pdf",
+            //     500 * 1024 * 1024,
+            //     "PDF",
+            //     false,
+            // ),
+
 use std::io::Read;
-use std::sync::OnceLock;
 use std::{
     collections::HashSet,
     fs::{self, File},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
 };
 
+use base64::Engine;
+use serde::Serialize;
 use sha256::digest;
-
-static SIGNATURES: OnceLock<Vec<MagicByte>> = OnceLock::new();
+use tauri::Emitter;
 
 /// All default signatures
-pub fn get_signatures() -> &'static Vec<MagicByte<'static>> {
-    SIGNATURES.get_or_init(|| {
-        vec![
-            MagicByte::new(
-                &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
-                &[0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82],
-                "png",
-                200 * 1024 * 1024,
-                "PNG",
-                true,
-            ),
-            MagicByte::new(
-                &[0xFF, 0xD8],
-                &[0xFF, 0xD9],
-                "jpeg",
-                500 * 1024 * 1024,
-                "JPEG",
-                true,
-            ),
-            MagicByte::new(
-                &[0x50, 0x4B, 0x03, 0x04],
-                &[0x50, 0x4B, 0x05, 0x06],
-                "zip",
-                500 * 1024 * 1024,
-                "ZIP",
-                false,
-            ),
-            MagicByte::new(
-                &[0x25, 0x50, 0x44, 0x46, 0x2D],
-                &[0x25, 0x25, 0x45, 0x4F, 0x46],
-                "pdf",
-                500 * 1024 * 1024,
-                "PDF",
-                false,
-            ),
-        ]
-    })
-}
-
+/// 0xFF, 0xD8
+/// 0XFF, 0xD9
 pub struct MagicByte<'s> {
     signature: &'s [u8],
     end: &'s [u8],
@@ -91,10 +84,34 @@ impl<'s> MagicByte<'s> {
     }
 }
 
+#[derive(Serialize, Clone)]
+struct FileFound {
+    iteration: i32,
+    base64: String
+}
+
+
+#[tauri::command]
+pub async fn find_jpeg(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
+    let test = MagicByte::new(
+        &[0xFF, 0xD8],
+        &[0xFF, 0xD9],
+        "jpeg",
+        500 * 1024 * 1024,
+        "JPEG",
+        true,
+    );
+
+    test.extract(app_handle, path)
+}
+
 impl<'s> MagicByte<'s> {
-    pub fn extract(&self, running: &Arc<AtomicBool>, file: &mut File) -> std::io::Result<()> {
-        let mut buffer = vec![0u8; 16 * 1024 * 1024];
+    pub fn extract(&self, app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
+        let mut file = File::open(path).map_err(|e| e.to_string())?;
+
+        let mut buffer = vec![0u8; 32 * 1024 * 1024];
         let mut total_read: u64 = 0;
+        let mut iteration = 0;
 
         let mut file_buffer: Vec<u8> = Vec::new();
         let mut file_hash: HashSet<String> = HashSet::new();
@@ -105,12 +122,7 @@ impl<'s> MagicByte<'s> {
         let mut count = 0;
 
         loop {
-            if !running.load(Ordering::SeqCst) {
-                println!("Ending IO...");
-                break;
-            }
-
-            let bytes_read = file.read(&mut buffer)?;
+            let bytes_read = file.read(&mut buffer).map_err(|e| e.to_string())?;
             if bytes_read == 0 {
                 break;
             }
@@ -127,20 +139,19 @@ impl<'s> MagicByte<'s> {
                     } else if file_buffer.len() >= self.end.len()
                         && file_buffer[file_buffer.len() - self.end.len()..] == *self.end
                     {
-                        // @TODO: This will fail in other file extensions
-                        // like ZIP or PDF, that are not a "image"
                         if self.is_image {
                             if image::load_from_memory(&file_buffer).is_ok() {
                                 let hash = digest(&file_buffer);
-                                if file_hash.insert(hash.clone()) {
-                                    let filename =
-                                        format!("{}_{count}.{}", self.extension, self.extension);
-                                    fs::write(&filename, &file_buffer)
-                                        .expect("Falha ao salvar PNG");
-                                    println!("Saved {} ({} bytes)", filename, file_buffer.len());
-                                    count += 1;
-                                }
+                            if file_hash.insert(hash.clone()) {
+                                let base64 = base64::engine::general_purpose::STANDARD.encode(&file_buffer);
+                                println!("Found {} ({} bytes) - SHA256: {}", self.name, file_buffer.len(), hash);
+                                count += 1;
+                                app_handle.emit("file-found", FileFound {
+                                    iteration,
+                                    base64
+                                }).unwrap();
                             }
+                        }
                         } else {
                             let filename = format!("{}_{count}.{}", self.extension, self.extension);
                             fs::write(&filename, &file_buffer).expect("Falha ao salvar PNG");
@@ -169,6 +180,8 @@ impl<'s> MagicByte<'s> {
 
             let progress_mb = total_read as f64 / 1024.0 / 1024.0;
             println!("Progress: {:.2} MB", progress_mb);
+
+            iteration += 1;
         }
 
         println!("Program ended successfully.");

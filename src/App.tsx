@@ -3,6 +3,7 @@ import Main from "./pages/Main";
 
 import "./App.css"
 import Scanning from "./pages/Scanning";
+import Images from "./pages/Images";
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Main />} />
         <Route path="/disk" element={<Scanning />} />
+        <Route path="/images" element={<Images />} />
       </Routes>
     </HashRouter>
   );

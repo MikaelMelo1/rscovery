@@ -3,6 +3,7 @@ use sysinfo::Disks;
 use std::io::{BufRead, BufReader};
 
 mod analyze_blocks;
+mod find_file;
 
 #[derive(Debug, Serialize)]
 pub struct DiskInfo {
@@ -77,7 +78,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             list_disks,
-            analyze_blocks::analyze_blocks
+            analyze_blocks::analyze_blocks,
+            find_file::find_jpeg
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
