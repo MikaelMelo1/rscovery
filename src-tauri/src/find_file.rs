@@ -1,19 +1,9 @@
 // User sends the valid blocks indexes (32MB each)
-// We need to return the absolute position (in HEX) of the specific 
-// magic byte. 
+// We need to return the absolute position (in HEX) of the specific
+// magic byte.
 
 // For now, the user does not specify custom magic bytes, but needs to
 // select from our list.
-
-
-// MagicByte::new(
-//     &[0x50, 0x4B, 0x03, 0x04],
-//     &[0x50, 0x4B, 0x05, 0x06],
-//     "zip",
-//     500 * 1024 * 1024,
-//     "ZIP",
-//     false,
-// ),
 
 use std::io::Read;
 use std::{
@@ -41,99 +31,82 @@ pub struct MagicByte<'s> {
     is_image: bool,
 }
 
-impl<'s> MagicByte<'s> {
-    pub fn new(
-        signature: &'s [u8],
-        end: &'s [u8],
-        extension: &'s str,
-        max_size: usize,
-        name: &'s str,
-        is_image: bool,
-    ) -> MagicByte<'s> {
-        MagicByte {
-            signature,
-            end,
-            extension,
-            max_size,
-            name,
-            is_image,
-        }
-    }
-}
-
 #[derive(Serialize, Clone)]
 struct ImageFound {
-    base64: String
+    base64: String,
 }
-
 
 #[derive(Serialize, Clone)]
 struct FileFind {
     path: String,
-    size: f64
+    size: f64,
 }
 
 #[derive(Serialize, Clone)]
 struct Progress {
     current: f64,
-    total: f64
+    total: f64,
 }
-
 
 #[tauri::command]
 pub async fn find_jpeg(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
-    MagicByte::new(
-        &[0xFF, 0xD8],
-        &[0xFF, 0xD9],
-        "jpeg",
-        500 * 1024 * 1024,
-        "JPEG",
-        true,
-    ).extract(app_handle, path, 300)
+    MagicByte {
+        signature: &[0xFF, 0xD8],
+        end: &[0xFF, 0xD9],
+        extension: "jpeg",
+        max_size: 500 * 1024 * 1024,
+        name: "JPEG",
+        is_image: true,
+    }
+    .extract(app_handle, path, 300)
 }
-
 
 #[tauri::command]
 pub async fn find_png(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
-    MagicByte::new(
-        &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
-        &[0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82],
-        "png",
-        200 * 1024 * 1024,
-        "PNG",
-        true,
-    ).extract(app_handle, path, 300)
+    MagicByte {
+        signature: &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+        end: &[0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82],
+        extension: "png",
+        max_size: 200 * 1024 * 1024,
+        name: "PNG",
+        is_image: true,
+    }
+    .extract(app_handle, path, 300)
 }
-
-
-
 
 #[tauri::command]
 pub async fn find_pdf(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
-    MagicByte::new(
-        &[0x25, 0x50, 0x44, 0x46, 0x2D],
-        &[0x25, 0x25, 0x45, 0x4F, 0x46],
-        "pdf",
-        500 * 1024 * 1024,
-        "PDF",
-        false
-    ).extract(app_handle, path, 300)
+    MagicByte {
+        signature: &[0x25, 0x50, 0x44, 0x46, 0x2D],
+        end: &[0x25, 0x25, 0x45, 0x4F, 0x46],
+        extension: "pdf",
+        max_size: 500 * 1024 * 1024,
+        name: "PDF",
+        is_image: false,
+    }
+    .extract(app_handle, path, 300)
 }
 
 #[tauri::command]
 pub async fn find_zip(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
-    MagicByte::new(
-        &[0x50, 0x4B, 0x03, 0x04],
-        &[0x50, 0x4B, 0x05, 0x06],
-        "zip",
-        500 * 1024 * 1024,
-        "ZIP",
-        false,
-    ).extract(app_handle, path, 300)
+    MagicByte {
+        signature: &[0x50, 0x4B, 0x03, 0x04],
+        end: &[0x50, 0x4B, 0x05, 0x06],
+        extension: "zip",
+        max_size: 500 * 1024 * 1024,
+        name: "ZIP",
+        is_image: false,
+    }
+    .extract(app_handle, path, 300)
 }
 
 impl<'s> MagicByte<'s> {
-    pub fn extract(&self, app_handle: tauri::AppHandle, path: &str, max: i32) -> Result<(), String> {
+    pub fn extract(
+        &self,
+        app_handle: tauri::AppHandle,
+        path: &str,
+        max: i32,
+    ) -> Result<(), String> {
         let mut file = File::open(path).map_err(|e| e.to_string())?;
 
         let total_size = get_block_device_size_gb(path).map_err(|e| e.to_string())?;
@@ -149,10 +122,15 @@ impl<'s> MagicByte<'s> {
 
         let mut count = 0;
 
-        app_handle.emit("file-progress", Progress {
-            current: 0.0,
-            total: total_size
-        }).unwrap();
+        app_handle
+            .emit(
+                "file-progress",
+                Progress {
+                    current: 0.0,
+                    total: total_size,
+                },
+            )
+            .unwrap();
 
         loop {
             let bytes_read = file.read(&mut buffer).map_err(|e| e.to_string())?;
@@ -170,37 +148,47 @@ impl<'s> MagicByte<'s> {
                     file_buffer.push(b);
 
                     if file_buffer.len() > self.max_size {
-                        println!("{} excedeu tamanho máximo", self.name);
                         searching_file = false;
                         file_buffer.clear();
-                    } else if file_buffer.len() >= self.end.len()
+                        continue;
+                    }
+                    if file_buffer.len() >= self.end.len()
                         && file_buffer[file_buffer.len() - self.end.len()..] == *self.end
                     {
                         if self.is_image {
                             if image::load_from_memory(&file_buffer).is_ok() {
                                 let hash = digest(&file_buffer);
-                            if file_hash.insert(hash.clone()) {
-                                let base64 = base64::engine::general_purpose::STANDARD.encode(&file_buffer);
-                                count += 1;
-                                app_handle.emit("file-found", ImageFound {
-                                    base64
-                                }).unwrap();
+                                if file_hash.insert(hash.clone()) {
+                                    let base64 = base64::engine::general_purpose::STANDARD
+                                        .encode(&file_buffer);
+                                    count += 1;
+                                    app_handle
+                                        .emit("file-found", ImageFound { base64 })
+                                        .unwrap();
+                                }
                             }
-                        }
                         } else {
                             let hash = digest(&file_buffer);
                             if file_hash.insert(hash.clone()) {
-                                let filename = format!("../found/{}_{count}.{}", self.extension, self.extension);
-                                fs::write(&filename, &file_buffer).expect("Error while saving file");
-    
-                                app_handle.emit("file-found", FileFind {
-                                    path: filename,
-                                    size: file_buffer.len() as f64 / 1024.0 
-                                }).unwrap();
-                                
+                                let filename = format!(
+                                    "../found/{}_{count}.{}",
+                                    self.extension, self.extension
+                                );
+                                fs::write(&filename, &file_buffer)
+                                    .expect("Error while saving file");
+
+                                app_handle
+                                    .emit(
+                                        "file-found",
+                                        FileFind {
+                                            path: filename,
+                                            size: file_buffer.len() as f64 / 1024.0,
+                                        },
+                                    )
+                                    .unwrap();
+
                                 count += 1;
                             }
-
                         }
 
                         searching_file = false;
@@ -209,6 +197,7 @@ impl<'s> MagicByte<'s> {
                     }
                     continue;
                 }
+
                 if b == self.signature[sig_match_index] {
                     sig_match_index += 1;
                     if sig_match_index == self.signature.len() {
@@ -222,15 +211,17 @@ impl<'s> MagicByte<'s> {
                 }
             }
 
-            let progress_mb = total_read as f64 / 1024.0 / 1024.0;
-            println!("Progress: {:.2} MB", progress_mb);
-            app_handle.emit("file-progress", Progress {
-                current: progress_mb,
-                total: total_size
-            }).unwrap();
+            app_handle
+                .emit(
+                    "file-progress",
+                    Progress {
+                        current: total_read as f64 / 1024.0 / 1024.0,
+                        total: total_size,
+                    },
+                )
+                .unwrap();
         }
 
-        println!("Program ended successfully.");
         Ok(())
     }
 }
