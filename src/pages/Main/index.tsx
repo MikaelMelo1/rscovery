@@ -34,7 +34,7 @@ export default function Main() {
       <div className="deviceList">
         {disks.map(({ name, size }) => (
           <Link
-            to={`/images?id=${name}`}
+            to={`/disk?id=${name}`}
             key={name}
             style={{ textDecoration: "none", color: "inherit" }}
           >

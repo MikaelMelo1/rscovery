@@ -1,4 +1,4 @@
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import "./styles.css";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -14,30 +14,40 @@ export default function Images() {
   const queryParams = new URLSearchParams(search);
 
   const id = queryParams.get("id");
+  const type = queryParams.get("type") as "png" | "jpeg";
 
   const [loadingScan, setLoadingScan] = useState(false);
   const [images, setImages] = useState<string[]>([]);
-  const [iteration, setIteration] = useState(0);
+
+  const [progress, setProgress] = useState(0);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    const unlistenProgress = listen("file-found", (event) => {
+    const unlistenFound = listen("file-found", (event) => {
       const progress = event.payload as ImagePayload;
       console.log(progress)
       setImages((prev) => [...prev, progress.base64]);
-      setIteration(progress.iteration);
+    });
+
+    const unlistenProgress = listen("file-progress", (event) => {
+      const progress = event.payload as {current: number, total: number};
+      console.log(progress)
+      setProgress(progress.current);
+      setTotal(progress.total);
     });
 
 
     return () => {
+      unlistenFound.then((f) => f());
       unlistenProgress.then((f) => f());
     };
   }, []);
 
   const handleStartScan = async () => {
     try {
-      // console.log(id);
       setLoadingScan(true);
-      await invoke("find_jpeg", { path: id });
+      const invokeName = type === "jpeg" ? "find_jpeg" : "find_png";
+      await invoke(invokeName, { path: id });
     } catch (err) {
       console.error("Error starting scan:", err);
     }
@@ -47,15 +57,15 @@ export default function Images() {
     <main className="container">
       <header>
         <div>
-          <Link to={"/"}>Go Back</Link>
+          <Link to={`/disk?id=${id}`}>Go Back</Link>
         </div>
-        <h1>📷 Disk "{id}"</h1>
+        <h1>📷 Disk "{id}" ({type})</h1>
       </header>
 
       {loadingScan ? (
         <div>
           <p>
-            {iteration}
+            {(progress / 1024).toFixed(2)}/{(total / 1024).toFixed(2)} ({images.length})
         </p>
           <div className="scanGrid">
             {images.map((img, index) => (

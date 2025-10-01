@@ -17,7 +17,7 @@ struct Progress {
 /// their size in the filesystem metadata. That's why using `metadata().len()` 
 /// does not work. 
 /// We need to find the number of 512byte sectors to find the size of the device.
-fn get_block_device_size_gb(device: &str) -> std::io::Result<f64> {
+pub fn get_block_device_size_gb(device: &str) -> std::io::Result<f64> {
     let path = format!("/sys/class/block/{}/size", device.replace("/dev/", ""));
     let blocks: u64 = fs::read_to_string(path)?
         .trim()

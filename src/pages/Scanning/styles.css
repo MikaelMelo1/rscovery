@@ -19,3 +19,28 @@ div.scanGrid div {
     background-color: rgb(108, 108, 108);
     aspect-ratio: 1/0.5;
 }
+
+
+div.options {
+    max-width: 600px;
+    margin: 0px auto;
+    margin-top: 32px;
+    display: grid;
+    width: 100%;
+    gap: 8px;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+div.options div {
+    width: 100%;
+    background-color: #1d1d1d;
+    color: white;
+    padding: 8px 0px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 120ms;
+}
+
+div.options div:hover {
+    opacity: 80%;
+}

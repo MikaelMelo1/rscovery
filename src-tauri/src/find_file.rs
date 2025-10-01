@@ -5,41 +5,15 @@
 // For now, the user does not specify custom magic bytes, but needs to
 // select from our list.
 
-// Ex: finds the start position of a valid block (e.g. valid image).
 
-
-            // MagicByte::new(
-            //     &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
-            //     &[0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82],
-            //     "png",
-            //     200 * 1024 * 1024,
-            //     "PNG",
-            //     true,
-            // ),
-            // MagicByte::new(
-            //     &[0xFF, 0xD8],
-            //     &[0xFF, 0xD9],
-            //     "jpeg",
-            //     500 * 1024 * 1024,
-            //     "JPEG",
-            //     true,
-            // ),
-            // MagicByte::new(
-            //     &[0x50, 0x4B, 0x03, 0x04],
-            //     &[0x50, 0x4B, 0x05, 0x06],
-            //     "zip",
-            //     500 * 1024 * 1024,
-            //     "ZIP",
-            //     false,
-            // ),
-            // MagicByte::new(
-            //     &[0x25, 0x50, 0x44, 0x46, 0x2D],
-            //     &[0x25, 0x25, 0x45, 0x4F, 0x46],
-            //     "pdf",
-            //     500 * 1024 * 1024,
-            //     "PDF",
-            //     false,
-            // ),
+// MagicByte::new(
+//     &[0x50, 0x4B, 0x03, 0x04],
+//     &[0x50, 0x4B, 0x05, 0x06],
+//     "zip",
+//     500 * 1024 * 1024,
+//     "ZIP",
+//     false,
+// ),
 
 use std::io::Read;
 use std::{
@@ -52,9 +26,12 @@ use serde::Serialize;
 use sha256::digest;
 use tauri::Emitter;
 
+use crate::analyze_blocks::get_block_device_size_gb;
+
 /// All default signatures
-/// 0xFF, 0xD8
-/// 0XFF, 0xD9
+/// When `is_image`, it'll send the image as b64 to the frontend, and
+/// the file will not be saved in the disk. Otherwhise, it'll save into the disk
+/// and return the path to the frontend.
 pub struct MagicByte<'s> {
     signature: &'s [u8],
     end: &'s [u8],
@@ -85,33 +62,84 @@ impl<'s> MagicByte<'s> {
 }
 
 #[derive(Serialize, Clone)]
-struct FileFound {
-    iteration: i32,
+struct ImageFound {
     base64: String
+}
+
+
+#[derive(Serialize, Clone)]
+struct FileFind {
+    path: String,
+    size: f64
+}
+
+#[derive(Serialize, Clone)]
+struct Progress {
+    current: f64,
+    total: f64
 }
 
 
 #[tauri::command]
 pub async fn find_jpeg(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
-    let test = MagicByte::new(
+    MagicByte::new(
         &[0xFF, 0xD8],
         &[0xFF, 0xD9],
         "jpeg",
         500 * 1024 * 1024,
         "JPEG",
         true,
-    );
+    ).extract(app_handle, path, 300)
+}
 
-    test.extract(app_handle, path)
+
+#[tauri::command]
+pub async fn find_png(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
+    MagicByte::new(
+        &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+        &[0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82],
+        "png",
+        200 * 1024 * 1024,
+        "PNG",
+        true,
+    ).extract(app_handle, path, 300)
+}
+
+
+
+
+#[tauri::command]
+pub async fn find_pdf(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
+    MagicByte::new(
+        &[0x25, 0x50, 0x44, 0x46, 0x2D],
+        &[0x25, 0x25, 0x45, 0x4F, 0x46],
+        "pdf",
+        500 * 1024 * 1024,
+        "PDF",
+        false
+    ).extract(app_handle, path, 300)
+}
+
+#[tauri::command]
+pub async fn find_zip(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
+    MagicByte::new(
+        &[0x50, 0x4B, 0x03, 0x04],
+        &[0x50, 0x4B, 0x05, 0x06],
+        "zip",
+        500 * 1024 * 1024,
+        "ZIP",
+        false,
+    ).extract(app_handle, path, 300)
 }
 
 impl<'s> MagicByte<'s> {
-    pub fn extract(&self, app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
+    pub fn extract(&self, app_handle: tauri::AppHandle, path: &str, max: i32) -> Result<(), String> {
         let mut file = File::open(path).map_err(|e| e.to_string())?;
+
+        let total_size = get_block_device_size_gb(path).map_err(|e| e.to_string())?;
 
         let mut buffer = vec![0u8; 32 * 1024 * 1024];
         let mut total_read: u64 = 0;
-        let mut iteration = 0;
 
         let mut file_buffer: Vec<u8> = Vec::new();
         let mut file_hash: HashSet<String> = HashSet::new();
@@ -121,12 +149,21 @@ impl<'s> MagicByte<'s> {
 
         let mut count = 0;
 
+        app_handle.emit("file-progress", Progress {
+            current: 0.0,
+            total: total_size
+        }).unwrap();
+
         loop {
             let bytes_read = file.read(&mut buffer).map_err(|e| e.to_string())?;
             if bytes_read == 0 {
                 break;
             }
             total_read += bytes_read as u64;
+
+            if count >= max {
+                break;
+            }
 
             for &b in buffer[..bytes_read].iter() {
                 if searching_file {
@@ -144,19 +181,26 @@ impl<'s> MagicByte<'s> {
                                 let hash = digest(&file_buffer);
                             if file_hash.insert(hash.clone()) {
                                 let base64 = base64::engine::general_purpose::STANDARD.encode(&file_buffer);
-                                println!("Found {} ({} bytes) - SHA256: {}", self.name, file_buffer.len(), hash);
                                 count += 1;
-                                app_handle.emit("file-found", FileFound {
-                                    iteration,
+                                app_handle.emit("file-found", ImageFound {
                                     base64
                                 }).unwrap();
                             }
                         }
                         } else {
-                            let filename = format!("{}_{count}.{}", self.extension, self.extension);
-                            fs::write(&filename, &file_buffer).expect("Falha ao salvar PNG");
-                            println!("Saved {} ({} bytes)", filename, file_buffer.len());
-                            count += 1;
+                            let hash = digest(&file_buffer);
+                            if file_hash.insert(hash.clone()) {
+                                let filename = format!("../found/{}_{count}.{}", self.extension, self.extension);
+                                fs::write(&filename, &file_buffer).expect("Error while saving file");
+    
+                                app_handle.emit("file-found", FileFind {
+                                    path: filename,
+                                    size: file_buffer.len() as f64 / 1024.0 
+                                }).unwrap();
+                                
+                                count += 1;
+                            }
+
                         }
 
                         searching_file = false;
@@ -180,8 +224,10 @@ impl<'s> MagicByte<'s> {
 
             let progress_mb = total_read as f64 / 1024.0 / 1024.0;
             println!("Progress: {:.2} MB", progress_mb);
-
-            iteration += 1;
+            app_handle.emit("file-progress", Progress {
+                current: progress_mb,
+                total: total_size
+            }).unwrap();
         }
 
         println!("Program ended successfully.");
