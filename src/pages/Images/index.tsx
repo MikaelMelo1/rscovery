@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import "./styles.css";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -25,17 +24,16 @@ export default function Images() {
   useEffect(() => {
     const unlistenFound = listen("file-found", (event) => {
       const progress = event.payload as ImagePayload;
-      console.log(progress)
+      console.log(progress);
       setImages((prev) => [...prev, progress.base64]);
     });
 
     const unlistenProgress = listen("file-progress", (event) => {
-      const progress = event.payload as {current: number, total: number};
-      console.log(progress)
+      const progress = event.payload as { current: number; total: number };
+      console.log(progress);
       setProgress(progress.current);
       setTotal(progress.total);
     });
-
 
     return () => {
       unlistenFound.then((f) => f());
@@ -59,22 +57,25 @@ export default function Images() {
         <div>
           <Link to={`/disk?id=${id}`}>Go Back</Link>
         </div>
-        <h1>📷 Disk "{id}" ({type})</h1>
+        <h1>
+          📷 Disk "{id}" ({type})
+        </h1>
       </header>
 
       {loadingScan ? (
         <div>
           <p>
-            {(progress / 1024).toFixed(2)}/{(total / 1024).toFixed(2)} ({images.length})
-        </p>
-          <div className="scanGrid">
+            {(progress / 1024).toFixed(2)}/{(total / 1024).toFixed(2)} (
+            {images.length})
+          </p>
+          <div className="imageGrid">
             {images.map((img, index) => (
-                    <img    
+              <img
                 key={index}
-                        src={`data:image/jpeg;base64,${img}`}
-                        alt={`Recovered ${index}`}
-                        className="recoveredImage"
-                    />
+                src={`data:image/jpeg;base64,${img}`}
+                alt={`Recovered ${index}`}
+                className="recoveredImage"
+              />
             ))}
           </div>
         </div>

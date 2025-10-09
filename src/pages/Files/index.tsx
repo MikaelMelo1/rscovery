@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import "./styles.css";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -29,7 +28,7 @@ export default function Files() {
   const queryParams = new URLSearchParams(search);
 
   const id = queryParams.get("id");
-  const type = queryParams.get("type") as "pdf" | "zip";
+  const type = queryParams.get("type") as "pdf" | "zip" | "mp4";
 
   const [loadingScan, setLoadingScan] = useState(false);
   const [files, setFiles] = useState<FilePayload[]>([]);
@@ -61,7 +60,11 @@ export default function Files() {
   const handleStartScan = async () => {
     try {
       setLoadingScan(true);
-      const invokeName = type === "pdf" ? "find_pdf" : "find_zip";
+      const invokeName = type === "pdf" 
+        ? "find_pdf" 
+        : type === "mp4" 
+          ? "find_mp4" 
+          : "find_zip";
       await invoke(invokeName, { path: id });
     } catch (err) {
       console.error("Error starting scan:", err);
@@ -82,7 +85,7 @@ export default function Files() {
           <p>
             {(progress / 1024).toFixed(2)}/{(total / 1024).toFixed(2)} ({files.length})
         </p>
-          <div className="scanGrid">
+          <div className="filesGrid">
             {files.map(({path, size}, index) => (
               <div key={index}>
                 {type == "pdf" ? <PDFIcon /> : <WinrarIcon />}

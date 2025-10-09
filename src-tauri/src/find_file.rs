@@ -5,7 +5,7 @@
 // For now, the user does not specify custom magic bytes, but needs to
 // select from our list.
 
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::{
     collections::HashSet,
     fs::{self, File},
@@ -224,4 +224,120 @@ impl<'s> MagicByte<'s> {
 
         Ok(())
     }
+}
+
+#[tauri::command]
+pub async fn find_txt(
+    app_handle: tauri::AppHandle,
+    path: &str,
+    wordlist: Vec<String>,
+    blacklist: Vec<String>,
+) -> Result<(), String> {
+    println!("wordlist: {:?} \n blacklist:{:?}", wordlist, blacklist);
+    extract_txt(app_handle, path, 300, wordlist, blacklist)
+}
+
+#[derive(Serialize, Clone)]
+struct TextFound {
+    text: String,
+}
+
+pub fn extract_txt(
+    app_handle: tauri::AppHandle,
+    path: &str,
+    max: i32,
+    wordlist: Vec<String>,
+    blacklist: Vec<String>,
+) -> Result<(), String> {
+    use std::collections::HashSet;
+    use std::fs::File;
+    use std::io::Read;
+
+    let mut file = File::open(path).map_err(|e| e.to_string())?;
+    let total_size = get_block_device_size_gb(path).map_err(|e| e.to_string())?;
+
+    let mut buffer = vec![0u8; 32 * 1024 * 1024]; // 32 MB buffer
+    let mut total_read: u64 = 0;
+    let mut text_buffer: Vec<u8> = Vec::new(); // incremental text buffer
+    let mut count = 0;
+
+    // lowercase wordlist/blacklist for case-insensitive search
+    let wordlist: Vec<String> = wordlist.into_iter().map(|s| s.to_lowercase()).collect();
+    let blacklist: Vec<String> = blacklist.into_iter().map(|s| s.to_lowercase()).collect();
+
+    let mut found_hashes: HashSet<String> = HashSet::new();
+
+    let _ = app_handle.emit(
+        "file-progress",
+        Progress {
+            current: 0.0,
+            total: total_size,
+        },
+    );
+
+    loop {
+        let bytes_read = file.read(&mut buffer).map_err(|e| e.to_string())?;
+        if bytes_read == 0 {
+            break;
+        }
+        total_read += bytes_read as u64;
+
+        for &b in &buffer[..bytes_read] {
+            if b == 0x09 || b == 0x0A || b == 0x0D || (0x20..=0x7E).contains(&b) {
+                text_buffer.push(b);
+                // 64 KB
+                if text_buffer.len() > (64 * 1024) {
+                    text_buffer.clear();
+                }
+            } else {
+                if text_buffer.len() >= 32 {
+                    let text = String::from_utf8_lossy(&text_buffer).to_string();
+                    let text_lower = text.to_lowercase();
+
+                    if !blacklist.iter().any(|b| text_lower.contains(b))
+                        && wordlist.iter().any(|w| text_lower.contains(w))
+                    {
+                        let hash = digest(&text);
+                        if !found_hashes.contains(&hash) {
+                            found_hashes.insert(hash);
+
+                            count += 1;
+                            let _ = app_handle.emit("text-found", TextFound { text: text.clone() });
+                            if count >= max {
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+                // reset buffer
+                text_buffer.clear();
+            }
+        }
+
+        // emit progress
+        let _ = app_handle.emit(
+            "file-progress",
+            Progress {
+                current: total_read as f64 / 1024.0 / 1024.0,
+                total: total_size,
+            },
+        );
+    }
+
+    if text_buffer.len() >= 32 {
+        let text = String::from_utf8_lossy(&text_buffer).to_string();
+        let text_lower = text.to_lowercase();
+        if !blacklist.iter().any(|b| text_lower.contains(b))
+            && wordlist.iter().any(|w| text_lower.contains(w))
+        {
+            let hash = digest(&text);
+            if !found_hashes.contains(&hash) {
+                found_hashes.insert(hash);
+                count += 1;
+                let _ = app_handle.emit("text-found", TextFound { text: text.clone() });
+            }
+        }
+    }
+
+    Ok(())
 }

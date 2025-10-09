@@ -118,3 +118,161 @@ div.warningContainer {
   margin: 0px auto;
   padding: 12px 32px;
 }
+
+
+
+
+/* File Styles */
+div.filesGrid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(6, 1fr);
+    max-width: 750px;
+    margin: 0px auto;
+}
+
+div.filesGrid div {
+    width: 100%;
+    padding: 4px 0px;
+    border-radius: 4px;
+    background-color: rgb(77, 77, 77);
+    border: solid 1px rgb(108, 108, 108);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+div.filesGrid div h1 {
+    margin-top: 4px;
+    font-size: 18px;
+}
+
+div.filesGrid div p {
+    font-size: 14px;
+    line-height: 100%;
+    margin: 0px;
+    color: rgb(180, 180, 180);
+}
+
+/* Image Grid */
+div.imageGrid {
+    display: grid;
+    gap: 4px;
+    grid-template-columns: repeat(5, 1fr);
+    max-width: 750px;
+    margin: 0px auto;
+}
+
+div.imageGrid div {
+    width: 100%;
+    border-radius: 4px;
+    background-color: rgb(108, 108, 108);
+    aspect-ratio: 1/1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+
+img.recoveredImage {
+    width: 100%;
+    border-radius: 4px;
+    aspect-ratio: 1/1;
+    object-fit: contain;
+}
+
+/* Blocks Grid */
+div.scanGrid {
+    display: grid;
+    gap: 4px;
+    grid-template-columns: repeat(20, 1fr);
+    max-width: 750px;
+    margin: 0px auto;
+}
+
+div.scanGrid div {
+    width: 100%;
+    border-radius: 4px;
+    background-color: rgb(108, 108, 108);
+    aspect-ratio: 1/0.5;
+}
+
+
+/** Text Grid **/
+div.textGrid {
+    display: flex;
+    flex-direction: column;
+    max-width: 750px;
+    margin: 0px auto;
+}
+
+div.textGrid div {
+    width: 100%;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    background-color: rgb(77, 77, 77);
+    border: solid 1px rgb(108, 108, 108);
+    margin-bottom: 8px;
+    word-break: break-all;
+}
+
+
+div.options {
+    max-width: 600px;
+    margin: 0px auto;
+    margin-top: 32px;
+    display: grid;
+    width: 100%;
+    gap: 8px;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+div.options div {
+    width: 100%;
+    background-color: #1d1d1d;
+    color: white;
+    padding: 8px 0px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 120ms;
+}
+
+div.options div:hover {
+    opacity: 80%;
+}
+
+
+div.inputGroup {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    gap: 12px;
+    margin: 0px auto;
+    margin-top: 12px;
+}
+
+div.inputGroup div {
+    display: flex;
+    flex-direction: column; 
+    width: 100%;
+    align-items: flex-start;
+}
+
+div.inputGroup textarea {
+    width: 100%;
+    height: 40px;
+    background-color: rgb(50, 50, 50);
+    border: solid 1px rgb(108, 108, 108);
+    border-radius: 4px;
+    padding: 8px;
+    color: white;
+    font-size: 14px;
+    resize: none;
+}
+
+div.inputGroup  label {
+    font-size: 14px;
+    color: rgb(200, 200, 200);
+    font-weight: 500;
+}
